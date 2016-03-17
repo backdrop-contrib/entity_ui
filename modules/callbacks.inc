@@ -798,14 +798,35 @@ function entity_metadata_comment_properties_access($op, $property, $entity = NUL
  * Access callback for the taxonomy entities.
  */
 function entity_metadata_taxonomy_access($op, $entity = NULL, $account = NULL, $entity_type = NULL) {
-  if ($entity_type == 'taxonomy_vocabulary') {
-    return user_access('administer taxonomy', $account);
-  }
-  if (isset($entity) && $op == 'update' && !isset($account) && taxonomy_term_edit_access($entity)) {
+  // If user has administer taxonomy permission then no further checks.
+  if (user_access('administer taxonomy', $account)) {
     return TRUE;
   }
-  if (user_access('administer taxonomy', $account) || user_access('access content', $account) && $op == 'view') {
-    return TRUE;
+  switch ($op) {
+    case "view":
+      if (user_access('access content', $account)) {
+        return TRUE;
+      }
+      break;
+    case "update":
+      if ($entity_type == 'taxonomy_term') {
+        return user_access("edit terms in $entity->vid", $account);
+      }
+      break;
+    case "create":
+      if ($entity_type == 'taxonomy_term') {
+        // Check for taxonomy_access_fix contrib module which adds additional
+        // permissions to create new terms in a given vocabulary.
+        if (function_exists('taxonomy_access_fix_access')) {
+          return taxonomy_access_fix_access('add terms', $entity->vocabulary_machine_name);
+        }
+      }
+      break;
+    case "delete":
+      if ($entity_type == 'taxonomy_term') {
+        return user_access("delete terms in $entity->vid", $account);
+      }
+      break;
   }
   return FALSE;
 }
