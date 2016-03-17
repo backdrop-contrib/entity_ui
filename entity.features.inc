@@ -91,6 +91,7 @@ class EntityDefaultFeaturesController {
           $fields = field_info_instances($this->info['bundle of'], $entity->{$this->bundleKey});
           foreach ($fields as $name => $field) {
             $pipe['field'][] = "{$field['entity_type']}-{$field['bundle']}-{$field['field_name']}";
+            $pipe['field_instance'][] = "{$field['entity_type']}-{$field['bundle']}-{$field['field_name']}";
           }
         }
       }
