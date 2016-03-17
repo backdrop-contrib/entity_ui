@@ -132,9 +132,7 @@ class EntityDefaultFeaturesController {
    */
   function revert($module = NULL) {
     if ($defaults = features_get_default($this->type, $module)) {
-      foreach ($defaults as $name => $entity) {
-        entity_delete($this->type, $name);
-      }
+      entity_delete_multiple($this->type, array_keys($defaults));
     }
   }
 }
