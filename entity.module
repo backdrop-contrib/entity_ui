@@ -1568,7 +1568,7 @@ function _entity_info_add_metadata(&$entity_info) {
  * Implements hook_ctools_plugin_directory().
  */
 function entity_ctools_plugin_directory($module, $plugin) {
-  if ($module == 'ctools' && $plugin == 'content_types') {
-    return 'ctools/content_types';
+  if ($module == 'ctools') {
+    return "ctools/$plugin";
   }
 }
