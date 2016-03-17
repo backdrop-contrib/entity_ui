@@ -29,7 +29,7 @@ function entity_metadata_book_get_properties($node, array $options, $name, $enti
 
     case 'book_ancestors':
       $ancestors = array();
-      while (!empty($node->book['plid'])) {
+      while (!empty($node->book['plid']) && $node->book['plid'] != -1) {
         $link = book_link_load($node->book['plid']);
         array_unshift($ancestors, $link['nid']);
         $node = node_load($link['nid']);

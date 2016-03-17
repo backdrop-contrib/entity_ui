@@ -1466,6 +1466,7 @@ class EntityMetadataIntegrationTestCase extends EntityWebTestCase {
     $book = array('bid' => $node->nid, 'plid' => $node->book['mlid']);
     $node2 = $this->drupalCreateNode(array('type' => 'book', 'book' => $book));
     $node3 = $this->drupalCreateNode(array('type' => 'page'));
+    $node4 = $this->drupalCreateNode(array('type' => 'book', 'book' => array('bid' => 0, 'plid' => -1)));
 
     // Test whether the properties work.
     $wrapper = entity_metadata_wrapper('node', $node2);
@@ -1476,6 +1477,10 @@ class EntityMetadataIntegrationTestCase extends EntityWebTestCase {
     // Try using book properties for no book nodes.
     $wrapper = entity_metadata_wrapper('node', $node3);
     $this->assertEmpty($wrapper, 'book');
+    $this->assertEmptyArray($wrapper, 'book_ancestors');
+
+    // Test a book node which is not contained in a hierarchy.
+    $wrapper = entity_metadata_wrapper('node', $node4);
     $this->assertEmptyArray($wrapper, 'book_ancestors');
   }
 
