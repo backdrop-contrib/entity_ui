@@ -645,7 +645,7 @@ function entity_ui_operation_form($form, &$form_state, $entity_type, $entity, $o
  */
 function entity_ui_main_form_defaults($form, &$form_state, $entity = NULL, $op = NULL) {
   // Now equals entity_ui_form_defaults() but is still here to keep backward
-  // compatability.
+  // compatibility.
   return entity_ui_form_defaults($form, $form_state, $form_state['entity_type'], $entity, $op);
 }
 
