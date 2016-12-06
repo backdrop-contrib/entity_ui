@@ -36,17 +36,16 @@ class EntityDefaultUIController {
     $items = array();
     // Set this on the object so classes that extend hook_menu() can use it.
     $this->id_count = count(explode('/', $this->path));
-    $wildcard = isset($this->entityInfo['admin ui']['menu wildcard']) ? $this->entityInfo['admin ui']['menu wildcard'] : '%entity_object';
+    $wildcard = isset($this->entityInfo['admin ui']['menu wildcard']) ? $this->entityInfo['admin ui']['menu wildcard'] : '%entity_ui_object';
     $plural_label = isset($this->entityInfo['plural label']) ? $this->entityInfo['plural label'] : $this->entityInfo['label'] . 's';
 
     $items[$this->path] = array(
       'title' => $plural_label,
-      'page callback' => 'drupal_get_form',
+      'page callback' => 'backdrop_get_form',
       'page arguments' => array($this->entityType . '_overview_form', $this->entityType),
       'description' => 'Manage ' . $plural_label . '.',
       'access callback' => 'entity_access',
       'access arguments' => array('view', $this->entityType),
-      'file' => 'includes/entity.ui.inc',
     );
     $items[$this->path . '/list'] = array(
       'title' => 'List',
@@ -89,33 +88,18 @@ class EntityDefaultUIController {
     );
     // Menu item for operations like revert and delete.
     $items[$this->path . '/manage/' . $wildcard . '/%'] = array(
-      'page callback' => 'drupal_get_form',
+      'page callback' => 'backdrop_get_form',
       'page arguments' => array($this->entityType . '_operation_form', $this->entityType, $this->id_count + 1, $this->id_count + 2),
       'load arguments' => array($this->entityType),
       'access callback' => 'entity_access',
       'access arguments' => array('delete', $this->entityType, $this->id_count + 1),
-      'file' => 'includes/entity.ui.inc',
     );
-
-    if (!empty($this->entityInfo['exportable'])) {
-      // Menu item for importing an entity.
-      $items[$this->path . '/import'] = array(
-        'title callback' => 'entity_ui_get_action_title',
-        'title arguments' => array('import', $this->entityType),
-        'page callback' => 'drupal_get_form',
-        'page arguments' => array($this->entityType . '_operation_form', $this->entityType, NULL, 'import'),
-        'access callback' => 'entity_access',
-        'access arguments' => array('create', $this->entityType),
-        'file' => 'includes/entity.ui.inc',
-        'type' => MENU_LOCAL_ACTION,
-      );
-    }
 
     if (!empty($this->entityInfo['admin ui']['file'])) {
       // Add in the include file for the entity form.
       foreach (array("/manage/$wildcard", "/manage/$wildcard/clone", '/add') as $path_end) {
         $items[$this->path . $path_end]['file'] = $this->entityInfo['admin ui']['file'];
-        $items[$this->path . $path_end]['file path'] = isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : drupal_get_path('module', $this->entityInfo['module']);
+        $items[$this->path . $path_end]['file path'] = isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : backdrop_get_path('module', $this->entityInfo['module']);
       }
     }
     return $items;
@@ -154,7 +138,7 @@ class EntityDefaultUIController {
     if (!(count($this->entityInfo['bundles']) == 1 && isset($this->entityInfo['bundles'][$this->entityType]))) {
       foreach ($this->entityInfo['bundles'] as $bundle => $bundle_info) {
         $forms[$this->entityType . '_edit_' . $bundle . '_form']['callback'] = $this->entityType . '_form';
-        // Again the wrapper callback is invoked by entity_ui_get_form() anyway.
+       // Again the wrapper callback is invoked by entity_ui_get_form() anyway.
       }
     }
     return $forms;
@@ -202,7 +186,6 @@ class EntityDefaultUIController {
    *   A renderable array.
    */
   public function overviewTable($conditions = array()) {
-
     $query = new EntityFieldQuery();
     $query->entityCondition('entity_type', $this->entityType);
 
@@ -223,7 +206,7 @@ class EntityDefaultUIController {
 
     $rows = array();
     foreach ($entities as $entity) {
-      $rows[] = $this->overviewTableRow($conditions, entity_id($this->entityType, $entity), $entity);
+      $rows[] = $this->overviewTableRow($conditions, entity_ui_id($this->entityType, $entity), $entity);
     }
 
     $render = array(
@@ -254,9 +237,7 @@ class EntityDefaultUIController {
    */
   protected function operationCount() {
     $count = 3;
-    $count += !empty($this->entityInfo['bundle of']) && entity_type_is_fieldable($this->entityInfo['bundle of']) && module_exists('field_ui') ? 2 : 0;
-    $count += !empty($this->entityInfo['exportable']) ? 1 : 0;
-    $count += !empty($this->entityInfo['i18n controller class']) ? 1 : 0;
+    $count += !empty($this->entityInfo['bundle of']) && $this->isFieldable($this->entityInfo['bundle of']) && module_exists('field_ui') ? 2 : 0;
     return $count;
   }
 
@@ -273,7 +254,7 @@ class EntityDefaultUIController {
     $row[] = array('data' => array(
       '#theme' => 'entity_ui_overview_item',
       '#label' => entity_label($this->entityType, $entity),
-      '#name' => !empty($this->entityInfo['exportable']) ? entity_id($this->entityType, $entity) : FALSE,
+      '#name' => !empty($this->entityInfo['exportable']) ? entity_ui_id($this->entityType, $entity) : FALSE,
       '#url' => $entity_uri ? $entity_uri : FALSE,
       '#entity_type' => $this->entityType),
     );
@@ -291,14 +272,12 @@ class EntityDefaultUIController {
       ));
     }
     // In case this is a bundle, we add links to the field ui tabs.
-    $field_ui = !empty($this->entityInfo['bundle of']) && entity_type_is_fieldable($this->entityInfo['bundle of']) && module_exists('field_ui');
-    // For exportable entities we add an export link.
+    $field_ui = !empty($this->entityInfo['bundle of']) && $this->isFieldable($this->entityInfo['bundle of']) && module_exists('field_ui');
+
     $exportable = !empty($this->entityInfo['exportable']);
-    // If i18n integration is enabled, add a link to the translate tab.
-    $i18n = !empty($this->entityInfo['i18n controller class']);
 
     // Add operations depending on the status.
-    if (entity_has_status($this->entityType, $entity, ENTITY_FIXED)) {
+    if ($this->entityStatus($this->entityType, $entity, ENTITY_FIXED)) {
       $row[] = array('data' => l(t('clone'), $this->path . '/manage/' . $id . '/clone'), 'colspan' => $this->operationCount());
     }
     else {
@@ -308,25 +287,21 @@ class EntityDefaultUIController {
         $row[] = l(t('manage fields'), $this->path . '/manage/' . $id . '/fields');
         $row[] = l(t('manage display'), $this->path . '/manage/' . $id . '/display');
       }
-      if ($i18n) {
-        $row[] = l(t('translate'), $this->path . '/manage/' . $id . '/translate');
-      }
       if ($exportable) {
         $row[] = l(t('clone'), $this->path . '/manage/' . $id . '/clone');
       }
 
-      if (empty($this->entityInfo['exportable']) || !entity_has_status($this->entityType, $entity, ENTITY_IN_CODE)) {
-        $row[] = l(t('delete'), $this->path . '/manage/' . $id . '/delete', array('query' => drupal_get_destination()));
+      if (empty($this->entityInfo['exportable']) || !$this->entityStatus($this->entityType, $entity, ENTITY_IN_CODE)) {
+        $row[] = l(t('delete'), $this->path . '/manage/' . $id . '/delete', array('query' => backdrop_get_destination()));
       }
-      elseif (entity_has_status($this->entityType, $entity, ENTITY_OVERRIDDEN)) {
-        $row[] = l(t('revert'), $this->path . '/manage/' . $id . '/revert', array('query' => drupal_get_destination()));
+      elseif ($this->entityStatus($this->entityType, $entity, ENTITY_OVERRIDDEN)) {
+        if (method_exists($entity, 'revert')) {
+          $row[] = l(t('revert'), $this->path . '/manage/' . $id . '/revert', array('query' => backdrop_get_destination()));
+        }
       }
       else {
         $row[] = '';
       }
-    }
-    if ($exportable) {
-      $row[] = l(t('export'), $this->path . '/manage/' . $id . '/export');
     }
     return $row;
   }
@@ -334,9 +309,6 @@ class EntityDefaultUIController {
 
   /**
    * Builds the operation form.
-   *
-   * For the export operation a serialized string of the entity is directly
-   * shown in the form (no submit function needed).
    */
   public function operationForm($form, &$form_state, $entity, $op) {
     switch ($op) {
@@ -349,85 +321,30 @@ class EntityDefaultUIController {
         $label = entity_label($this->entityType, $entity);
         $confirm_question = t('Are you sure you want to delete the %entity %label?', array('%entity' => $this->entityInfo['label'], '%label' => $label));
         return confirm_form($form, $confirm_question, $this->path);
-
-      case 'export':
-        if (!empty($this->entityInfo['exportable'])) {
-          $export = entity_export($this->entityType, $entity);
-          $form['export'] = array(
-            '#type' => 'textarea',
-            '#title' => t('Export'),
-            '#description' => t('For importing copy the content of the text area and paste it into the import page.'),
-            '#rows' => 25,
-            '#default_value' => $export,
-          );
-          return $form;
-        }
-
-      case 'import':
-        $form['import'] = array(
-          '#type' => 'textarea',
-          '#title' => t('Import'),
-          '#description' => t('Paste an exported %entity_type here.', array('%entity_type' => $this->entityInfo['label'])),
-          '#rows' => 20,
-        );
-        $form['overwrite'] = array(
-          '#title' => t('Overwrite'),
-          '#type' => 'checkbox',
-          '#description' => t('If checked, any existing %entity with the same identifier will be replaced by the import.', array('%entity' => $this->entityInfo['label'])),
-          '#default_value' => FALSE,
-        );
-        $form['submit'] = array(
-          '#type' => 'submit',
-          '#value' => t('Import'),
-        );
-        return $form;
     }
-    drupal_not_found();
+    backdrop_not_found();
     exit;
   }
 
   /**
    * Operation form validation callback.
    */
-  public function operationFormValidate($form, &$form_state) {
-    if ($form_state['op'] == 'import') {
-      if ($entity = entity_import($this->entityType, $form_state['values']['import'])) {
-        // Store the successfully imported entity in $form_state.
-        $form_state[$this->entityType] = $entity;
-        if (!$form_state['values']['overwrite']) {
-          // Check for existing entities with the same identifier.
-          $id = entity_id($this->entityType, $entity);
-          $entities = entity_load($this->entityType, array($id));
-          if (!empty($entities)) {
-            $label = entity_label($this->entityType, $entity);
-            $vars = array('%entity' => $this->entityInfo['label'], '%label' => $label);
-            form_set_error('import', t('Import of %entity %label failed, a %entity with the same machine name already exists. Check the overwrite option to replace it.', $vars));
-          }
-        }
-      }
-      else {
-        form_set_error('import', t('Import failed.'));
-      }
-    }
-  }
+  public function operationFormValidate($form, &$form_state) {}
 
   /**
    * Operation form submit callback.
    */
   public function operationFormSubmit($form, &$form_state) {
     $msg = $this->applyOperation($form_state['op'], $form_state[$this->entityType]);
-    drupal_set_message($msg);
+    backdrop_set_message($msg);
     $form_state['redirect'] = $this->path;
   }
 
   /**
    * Applies an operation to the given entity.
    *
-   * Note: the export operation is directly carried out by the operationForm()
-   * method.
-   *
    * @param string $op
-   *   The operation (revert, delete or import).
+   *   The operation (revert or delete).
    * @param $entity
    *   The entity to manipulate.
    *
@@ -437,33 +354,19 @@ class EntityDefaultUIController {
   public function applyOperation($op, $entity) {
     $label = entity_label($this->entityType, $entity);
     $vars = array('%entity' => $this->entityInfo['label'], '%label' => $label);
-    $id = entity_id($this->entityType, $entity);
+    $id = entity_ui_id($this->entityType, $entity);
     $edit_link = l(t('edit'), $this->path . '/manage/' . $id . '/edit');
 
     switch ($op) {
       case 'revert':
-        entity_delete($this->entityType, $id);
+        $entity->revert();
         watchdog($this->entityType, 'Reverted %entity %label to the defaults.', $vars, WATCHDOG_NOTICE, $edit_link);
         return t('Reverted %entity %label to the defaults.', $vars);
 
       case 'delete':
-        entity_delete($this->entityType, $id);
+        $entity->delete();
         watchdog($this->entityType, 'Deleted %entity %label.', $vars);
         return t('Deleted %entity %label.', $vars);
-
-      case 'import':
-        // First check if there is any existing entity with the same ID.
-        $id = entity_id($this->entityType, $entity);
-        $entities = entity_load($this->entityType, array($id));
-        if ($existing_entity = reset($entities)) {
-          // Copy DB id and remove the new indicator to overwrite the DB record.
-          $idkey = $this->entityInfo['entity keys']['id'];
-          $entity->{$idkey} = $existing_entity->{$idkey};
-          unset($entity->is_new);
-        }
-        entity_save($this->entityType, $entity);
-        watchdog($this->entityType, 'Imported %entity %label.', $vars);
-        return t('Imported %entity %label.', $vars);
 
       default:
         return FALSE;
@@ -495,6 +398,41 @@ class EntityDefaultUIController {
     entity_form_submit_build_entity($this->entityType, $form_state[$this->entityType], $form, $form_state);
     return $form_state[$this->entityType];
   }
+  
+  /**
+   * Checks whether an entity type is fieldable.
+   *
+   * @param $entity_type
+   *   The type of the entity.
+   *
+   * @return
+   *   TRUE if the entity type is fieldable, FALSE otherwise.
+   */
+  public function isFieldable($entity_type) {
+    $info = entity_get_info($entity_type);
+    return !empty($info['fieldable']);
+  }
+
+  /**
+   * Checks if a given entity has a certain exportable status.
+   *
+   * @param $entity_type
+   *   The type of the entity.
+   * @param $entity
+   *   The entity to check the status on.
+   * @param $status
+   *   The constant status like ENTITY_CUSTOM, ENTITY_IN_CODE, ENTITY_OVERRIDDEN
+   *   or ENTITY_FIXED.
+   *
+   * @return
+   *   TRUE if the entity has the status, FALSE otherwise.
+   */
+  public function entityStatus($entity_type, $entity, $status) {
+    $info = entity_get_info($entity_type);
+    $status_key = empty($info['entity keys']['status']) ? 'status' : $info['entity keys']['status'];
+    return isset($entity->{$status_key}) && ($entity->{$status_key} & $status) == $status;
+  }
+
 }
 
 /**
@@ -519,7 +457,7 @@ class EntityContentUIController extends EntityDefaultUIController {
 
     $defaults = array(
       'file' => $this->entityInfo['admin ui']['file'],
-      'file path' =>  isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : drupal_get_path('module', $this->entityInfo['module']),
+      'file path' =>  isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : backdrop_get_path('module', $this->entityInfo['module']),
     );
 
     // Add view, edit and delete menu items for content entities.
@@ -549,7 +487,7 @@ class EntityContentUIController extends EntityDefaultUIController {
       'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
     ) + $defaults;
     $items[$this->path . '/' . $wildcard . '/delete'] = array(
-      'page callback' => 'drupal_get_form',
+      'page callback' => 'backdrop_get_form',
       'page arguments' => array($this->entityType . '_operation_form', $this->entityType, $this->id_count, 'delete'),
       'load arguments' => array($this->entityType),
       'access callback' => 'entity_access',
@@ -558,7 +496,7 @@ class EntityContentUIController extends EntityDefaultUIController {
       'type' => MENU_LOCAL_TASK,
       'context' => MENU_CONTEXT_INLINE,
       'file' => $this->entityInfo['admin ui']['file'],
-      'file path' => isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : drupal_get_path('module', $this->entityInfo['module']),
+      'file path' => isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : backdrop_get_path('module', $this->entityInfo['module']),
     ) + $defaults;
 
     return $items;
@@ -611,157 +549,10 @@ class EntityBundleableUIController extends EntityContentUIController {
       // Add in the include file for the entity form.
       foreach (array('/add', '/add/%') as $path_end) {
         $items[$this->path . $path_end]['file'] = $this->entityInfo['admin ui']['file'];
-        $items[$this->path . $path_end]['file path'] = isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : drupal_get_path('module', $this->entityInfo['module']);
+        $items[$this->path . $path_end]['file path'] = isset($this->entityInfo['admin ui']['file path']) ? $this->entityInfo['admin ui']['file path'] : backdrop_get_path('module', $this->entityInfo['module']);
       }
     }
 
     return $items;
   }
 }
-
-/**
- * Form builder function for the overview form.
- *
- * @see EntityDefaultUIController::overviewForm()
- */
-function entity_ui_overview_form($form, &$form_state, $entity_type) {
-  return entity_ui_controller($entity_type)->overviewForm($form, $form_state);
-}
-
-/**
- * Form builder for the entity operation form.
- *
- * @see EntityDefaultUIController::operationForm()
- */
-function entity_ui_operation_form($form, &$form_state, $entity_type, $entity, $op) {
-  $form_state['op'] = $op;
-  return entity_ui_controller($entity_type)->operationForm($form, $form_state, $entity, $op);
-}
-
-/**
- * Form wrapper the main entity form.
- *
- * @see entity_ui_form_defaults()
- */
-function entity_ui_main_form_defaults($form, &$form_state, $entity = NULL, $op = NULL) {
-  // Now equals entity_ui_form_defaults() but is still here to keep backward
-  // compatibility.
-  return entity_ui_form_defaults($form, $form_state, $form_state['entity_type'], $entity, $op);
-}
-
-/**
- * Clones the entity object and makes sure it will get saved as new entity.
- *
- * @return
- *   The cloned entity object.
- */
-function entity_ui_clone_entity($entity_type, $entity) {
-  // Clone the entity and make sure it will get saved as a new entity.
-  $entity = clone $entity;
-
-  $entity_info = entity_get_info($entity_type);
-  $entity->{$entity_info['entity keys']['id']} = FALSE;
-  if (!empty($entity_info['entity keys']['name'])) {
-    $entity->{$entity_info['entity keys']['name']} = FALSE;
-  }
-  $entity->is_new = TRUE;
-
-  // Make sure the status of a cloned exportable is custom.
-  if (!empty($entity_info['exportable'])) {
-    $status_key = isset($entity_info['entity keys']['status']) ? $entity_info['entity keys']['status'] : 'status';
-    $entity->$status_key = ENTITY_CUSTOM;
-  }
-  return $entity;
-}
-
-/**
- * Form wrapper callback for all entity ui forms.
- *
- * This callback makes sure the form state is properly initialized and sets
- * some useful default titles.
- *
- * @see EntityDefaultUIController::hook_forms()
- */
-function entity_ui_form_defaults($form, &$form_state, $entity_type, $entity = NULL, $op = NULL) {
-  $defaults = array(
-    'entity_type' => $entity_type,
-  );
-  if (isset($entity)) {
-    $defaults[$entity_type] = $entity;
-  }
-  if (isset($op)) {
-    $defaults['op'] = $op;
-  }
-  $form_state += $defaults;
-  if (isset($op)) {
-    drupal_set_title(entity_ui_get_page_title($op, $entity_type, $entity), PASS_THROUGH);
-  }
-  // Add in handlers pointing to the controller for the forms implemented by it.
-  if (isset($form_state['build_info']['base_form_id']) && $form_state['build_info']['base_form_id'] != $entity_type . '_form') {
-    $form['#validate'][] = 'entity_ui_controller_form_validate';
-    $form['#submit'][] = 'entity_ui_controller_form_submit';
-  }
-  return $form;
-}
-
-/**
- * Validation callback for forms implemented by the UI controller.
- */
-function entity_ui_controller_form_validate($form, &$form_state) {
-  // Remove 'entity_ui_' prefix and the '_form' suffix.
-  $base = substr($form_state['build_info']['base_form_id'], 10, -5);
-  $method = $base . 'FormValidate';
-  entity_ui_controller($form_state['entity_type'])->$method($form, $form_state);
-}
-
-/**
- * Submit callback for forms implemented by the UI controller.
- */
-function entity_ui_controller_form_submit($form, &$form_state) {
-  // Remove 'entity_ui_' prefix and the '_form' suffix.
-  $base = substr($form_state['build_info']['base_form_id'], 10, -5);
-  $method = $base . 'FormSubmit';
-  entity_ui_controller($form_state['entity_type'])->$method($form, $form_state);
-}
-
-/**
- * Submit builder for the main entity form, which extracts the form values and updates the entity.
- *
- * This is a helper function for entities making use of the entity UI
- * controller.
- *
- * @return
- *   The updated entity.
- *
- * @see EntityDefaultUIController::hook_forms()
- * @see EntityDefaultUIController::entityFormSubmitBuildEntity()
- */
-function entity_ui_form_submit_build_entity($form, &$form_state) {
-  return entity_ui_controller($form_state['entity_type'])->entityFormSubmitBuildEntity($form, $form_state);
-}
-
-/**
- * Validation callback for machine names of exportables.
- *
- * We don't allow numeric machine names, as entity_load() treats them as the
- * numeric identifier and they are easily confused with ids in general.
- */
-function entity_ui_validate_machine_name($element, &$form_state) {
-  if (is_numeric($element['#value'])) {
-    form_error($element, t('Machine-readable names must not consist of numbers only.'));
-  }
-}
-
-/**
- * Returns HTML for an entity on the entity overview listing.
- *
- * @ingroup themeable
- */
-function theme_entity_ui_overview_item($variables) {
-  $output = $variables['url'] ? l($variables['label'], $variables['url']['path'], $variables['url']['options']) : check_plain($variables['label']);
-  if ($variables['name']) {
-    $output .= ' <small>(' . t('Machine name') . ': ' . check_plain($variables['name']) . ')</small>';
-  }
-  return $output;
-}
-

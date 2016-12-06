@@ -1,0 +1,5 @@
+name = Entity UI
+description = Provides a UI entity forms.
+package = Entity
+backdrop = 1.x
+type = module
