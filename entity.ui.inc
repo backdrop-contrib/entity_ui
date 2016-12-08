@@ -277,7 +277,7 @@ class EntityDefaultUIController {
     $exportable = !empty($this->entityInfo['exportable']);
 
     // Add operations depending on the status.
-    if ($this->entityStatus($this->entityType, $entity, ENTITY_FIXED)) {
+    if (entity_ui_entity_has_status($this->entityType, $entity, ENTITY_FIXED)) {
       $row[] = array('data' => l(t('clone'), $this->path . '/manage/' . $id . '/clone'), 'colspan' => $this->operationCount());
     }
     else {
@@ -291,10 +291,10 @@ class EntityDefaultUIController {
         $row[] = l(t('clone'), $this->path . '/manage/' . $id . '/clone');
       }
 
-      if (empty($this->entityInfo['exportable']) || !$this->entityStatus($this->entityType, $entity, ENTITY_IN_CODE)) {
+      if (empty($this->entityInfo['exportable']) || !entity_ui_entity_has_status($this->entityType, $entity, ENTITY_IN_CODE)) {
         $row[] = l(t('delete'), $this->path . '/manage/' . $id . '/delete', array('query' => backdrop_get_destination()));
       }
-      elseif ($this->entityStatus($this->entityType, $entity, ENTITY_OVERRIDDEN)) {
+      elseif (entity_ui_entity_has_status($this->entityType, $entity, ENTITY_OVERRIDDEN)) {
         if (method_exists($entity, 'revert')) {
           $row[] = l(t('revert'), $this->path . '/manage/' . $id . '/revert', array('query' => backdrop_get_destination()));
         }
@@ -411,26 +411,6 @@ class EntityDefaultUIController {
   public function isFieldable($entity_type) {
     $info = entity_get_info($entity_type);
     return !empty($info['fieldable']);
-  }
-
-  /**
-   * Checks if a given entity has a certain exportable status.
-   *
-   * @param $entity_type
-   *   The type of the entity.
-   * @param $entity
-   *   The entity to check the status on.
-   * @param $status
-   *   The constant status like ENTITY_CUSTOM, ENTITY_IN_CODE, ENTITY_OVERRIDDEN
-   *   or ENTITY_FIXED.
-   *
-   * @return
-   *   TRUE if the entity has the status, FALSE otherwise.
-   */
-  public function entityStatus($entity_type, $entity, $status) {
-    $info = entity_get_info($entity_type);
-    $status_key = empty($info['entity keys']['status']) ? 'status' : $info['entity keys']['status'];
-    return isset($entity->{$status_key}) && ($entity->{$status_key} & $status) == $status;
   }
 
 }

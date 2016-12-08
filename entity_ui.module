@@ -493,6 +493,26 @@ function entity_ui_validate_machine_name($element, &$form_state) {
 }
 
 /**
+ * Checks if a given entity has a certain exportable status.
+ *
+ * @param $entity_type
+ *   The type of the entity.
+ * @param $entity
+ *   The entity to check the status on.
+ * @param $status
+ *   The constant status like ENTITY_CUSTOM, ENTITY_IN_CODE, ENTITY_OVERRIDDEN
+ *   or ENTITY_FIXED.
+ *
+ * @return
+ *   TRUE if the entity has the status, FALSE otherwise.
+ */
+function entity_ui_entity_has_status($entity_type, $entity, $status) {
+  $info = entity_get_info($entity_type);
+  $status_key = empty($info['entity keys']['status']) ? 'status' : $info['entity keys']['status'];
+  return isset($entity->{$status_key}) && ($entity->{$status_key} & $status) == $status;
+}
+
+/**
  * Returns HTML for an entity on the entity overview listing.
  *
  * @ingroup themeable
