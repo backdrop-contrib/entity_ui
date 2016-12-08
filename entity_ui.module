@@ -77,7 +77,7 @@ function entity_ui_object_load($entity_id, $entity_type) {
  */
 function entity_ui_theme() {
   return array(
-    'entity_status' => array(
+    'entity_ui_entity_status' => array(
       'variables' => array('status' => NULL, 'html' => TRUE),
     ),
     'entity_ui_overview_item' => array(
@@ -200,7 +200,7 @@ function entity_ui_controller($type = NULL) {
   return $static[$type];
 }
 
-function entity_access($entity_type, $type) {
+function entity_ui_access($entity_type, $type) {
   return TRUE;
 }
 
@@ -508,7 +508,7 @@ function theme_entity_ui_overview_item($variables) {
 /**
  * Themes the exportable status of an entity.
  */
-function theme_entity_status($variables) {
+function theme_entity_ui_entity_status($variables) {
   $status = $variables['status'];
   $html = $variables['html'];
   if (($status & ENTITY_FIXED) == ENTITY_FIXED) {
