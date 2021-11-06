@@ -201,31 +201,29 @@ function entity_ui_controller($type = NULL) {
 }
 
 /**
- * Checks if user has access to the admin UI for an entity type
- * @param $entity_type
- *    The type of the entity
+ * Checks if user has access
+ * @param string $op
+ *   The operation to be performed on the entity. Possible values are:
+ *   - create
+ *   - view
+ *   - update
+ *   - delete
+ * @param string $entity_type
+ *   The entity type of the entity to check for.
+ * @param EntityInterface $entity
+ *   Optionally an entity to check access for. If no entity is given, it will be
+ *   determined whether access is allowed for all entities of the given type.
+ * @param User $account
+ *   The user to check for. Leave it to NULL to check for the global user.
+ *
+ * @return bool
+ *   Whether access is allowed or not. If the entity type does not specify any
+ *   access information, NULL is returned.
  */
-function entity_ui_access($op, $entity_type) {
-  $rights = &backdrop_static(__FUNCTION__, array());
-  if (isset($rights[$entity_type])) {
-    return $rights[$entity_type];
+function entity_ui_access($op, $entity_type, EntityInterface $entity = NULL, User $account = NULL) {
+  if (($info = entity_get_info($entity_type)) && isset($info['access callback'])) {
+    return $info['access callback']($op, $entity, $account, $entity_type);
   }
-
-  $info = entity_get_info($entity_type);
-  $access_callback = isset($info['access callback']) ? $info['access callback'] : 'user_access';
-  $access_arguments = isset($info['access arguments']) ? $info['access arguments'] : array();
-  // Since entity_ui_access function is intended to check access to 
-  // configuration entities that define bundles of content entities, 
-  // rather than using the provided $op to check for access, we use the 
-  // access arguments provided in   // hook_entity_info for the 
-  // configuration entity. The key 'access arguments' is therefore required for 
-  // configuration entities  and will often look something like 
-  // <code>array('administer exampleentity types');</code> 
-  if (empty($access_arguments)) {
-    return FALSE;
-  }
-  $rights[$entity_type] = call_user_func_array($access_callback, $access_arguments);
-  return $rights[$entity_type];
 }
 
 /**
