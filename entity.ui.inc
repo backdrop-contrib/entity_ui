@@ -447,7 +447,7 @@ class EntityContentUIController extends EntityDefaultUIController {
       'page callback' => 'entity_ui_entity_page_view',
       'page arguments' => array($this->id_count),
       'load arguments' => array($this->entityType),
-      'access callback' => 'entity_ui_access',
+      'access callback' => 'entity_access',
       'access arguments' => array('view', $this->entityType, $this->id_count),
     ) + $defaults;
     $items[$this->path . '/' . $wildcard . '/view'] = array(
@@ -460,7 +460,7 @@ class EntityContentUIController extends EntityDefaultUIController {
       'page callback' => 'entity_ui_get_form',
       'page arguments' => array($this->entityType, $this->id_count),
       'load arguments' => array($this->entityType),
-      'access callback' => 'entity_ui_access',
+      'access callback' => 'entity_access',
       'access arguments' => array('edit', $this->entityType, $this->id_count),
       'title' => 'Edit',
       'type' => MENU_LOCAL_TASK,
@@ -470,7 +470,7 @@ class EntityContentUIController extends EntityDefaultUIController {
       'page callback' => 'backdrop_get_form',
       'page arguments' => array($this->entityType . '_operation_form', $this->entityType, $this->id_count, 'delete'),
       'load arguments' => array($this->entityType),
-      'access callback' => 'entity_ui_access',
+      'access callback' => 'entity_access',
       'access arguments' => array('delete', $this->entityType, $this->id_count),
       'title' => 'Delete',
       'type' => MENU_LOCAL_TASK,
@@ -512,7 +512,7 @@ class EntityBundleableUIController extends EntityContentUIController {
       'title arguments' => array('add', $this->entityType),
       'page callback' => 'entity_ui_bundle_add_page',
       'page arguments' => array($this->entityType),
-      'access callback' => 'entity_ui_access',
+      'access callback' => 'entity_access',
       'access arguments' => array('create', $this->entityType),
       'type' => MENU_LOCAL_ACTION,
     );
@@ -521,7 +521,7 @@ class EntityBundleableUIController extends EntityContentUIController {
       'title arguments' => array('add', $this->entityType, $this->id_count + 1),
       'page callback' => 'entity_ui_get_bundle_add_form',
       'page arguments' => array($this->entityType, $this->id_count + 1),
-      'access callback' => 'entity_ui_access',
+      'access callback' => 'entity_access',
       'access arguments' => array('create', $this->entityType),
     );
 
