@@ -228,12 +228,9 @@ function entity_ui_bundle_add_page($entity_type) {
     ));
     // If modules use a uid, they can default to the current-user
     // in their create() method on the storage controller.
-    if (isset($info[$entity_type]['access callback'])) {
-      $access = $info[$entity_type]['access callback']('create', $entity_type, $dummy_entity, $account = NULL);
-      if ($access) {
-        $add_path = $info['admin ui']['path'] . '/add/' . $bundle_name;
-        $items[] = l(t('Add @label', array('@label' => $bundle_info['label'])), $add_path);
-      }
+    if (entity_access('create', $entity_type, $dummy_entity, $account = NULL)) {
+      $add_path = $info['admin ui']['path'] . '/add/' . $bundle_name;
+      $items[] = l(t('Add @label', array('@label' => $bundle_info['label'])), $add_path);
     }
   }
   return theme('item_list', array('items' => $items));
