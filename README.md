@@ -54,6 +54,7 @@ See the LICENSE.txt file in this directory for complete text.
 ## Current Maintainers
 
   - Andy Shillingford github.com/docwilmot
+  - Alejandro Cremaschi github.com/argiepiano
 
 ## Credits
 
