@@ -461,7 +461,7 @@ class EntityContentUIController extends EntityDefaultUIController {
       'page arguments' => array($this->entityType, $this->id_count),
       'load arguments' => array($this->entityType),
       'access callback' => 'entity_ui_access',
-      'access arguments' => array('edit', $this->entityType, $this->id_count),
+      'access arguments' => array('update', $this->entityType, $this->id_count),
       'title' => 'Edit',
       'type' => MENU_LOCAL_TASK,
       'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
