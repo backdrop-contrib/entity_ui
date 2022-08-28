@@ -200,8 +200,40 @@ function entity_ui_controller($type = NULL) {
   return $static[$type];
 }
 
-function entity_ui_access($entity_type, $type) {
-  return TRUE;
+/**
+ * Determines whether the given user can perform actions on an entity.
+ *
+ * For backward compatibility with Drupal 7 Entity API, this function is an
+ * adaptation of Drupal 7 Entity API's entity_access(). If the key 
+ * 'access callback' is not included in the entity definition, then this
+ * function will fall back to Backdrop's entity_access(). 
+ * 
+ * @param $op
+ *   The operation being performed. One of 'view', 'update', 'create' or
+ *   'delete'.
+ * @param $entity_type
+ *   The entity type of the entity to check for.
+ * @param $entity
+ *   Optionally an entity to check access for. If no entity is given, it will be
+ *   determined whether access is allowed for all entities of the given type.
+ * @param $account
+ *   The user to check for. Leave it to NULL to check for the global user.
+ *
+ * @return bool
+ *   Whether access is allowed or not. If the entity type does not specify any
+ *   access information, NULL is returned.
+ *
+ * @see entity_type_supports()
+ */
+function entity_ui_access($op, $entity_type, $entity = NULL, $account = NULL) {
+  $info = entity_get_info($entity_type);
+  if (isset($info['access callback'])) {
+    // Note that access callbacks use the following args.
+    return $info['access callback']($op, $entity, $account, $entity_type);
+  } 
+  else {
+    return entity_access($op, $entity_type, $entity, $account);
+  }
 }
 
 
