@@ -95,6 +95,20 @@ class EntityDefaultUIController {
       'access arguments' => array('delete', $this->entityType, $this->id_count + 1),
     );
 
+    if (!empty($this->entityInfo['exportable']) && module_exists('entity_plus')) {
+      // Menu item for importing an entity.
+      $items[$this->path . '/import'] = array(
+        'title callback' => 'entity_ui_get_action_title',
+        'title arguments' => array('import', $this->entityType),
+        'page callback' => 'backdrop_get_form',
+        'page arguments' => array($this->entityType . '_operation_form', $this->entityType, NULL, 'import'),
+        'access callback' => 'entity_ui_access',
+        'access arguments' => array('create', $this->entityType),
+        'file' => 'entity.ui.inc',
+        'type' => MENU_LOCAL_ACTION,
+      );
+    }
+
     if (!empty($this->entityInfo['admin ui']['file'])) {
       // Add in the include file for the entity form.
       foreach (array("/manage/$wildcard", "/manage/$wildcard/clone", '/add') as $path_end) {
@@ -238,6 +252,7 @@ class EntityDefaultUIController {
   protected function operationCount() {
     $count = 3;
     $count += !empty($this->entityInfo['bundle of']) && $this->isFieldable($this->entityInfo['bundle of']) && module_exists('field_ui') ? 2 : 0;
+    $count += !empty($this->entityInfo['exportable']) && module_exists('entity_plus') ? 1 : 0;
     return $count;
   }
 
@@ -303,6 +318,9 @@ class EntityDefaultUIController {
         $row[] = '';
       }
     }
+    if ($exportable && module_exists('entity_plus')) {
+      $row[] = l(t('export'), $this->path . '/manage/' . $id . '/export');
+    }
     return $row;
   }
 
@@ -321,6 +339,40 @@ class EntityDefaultUIController {
         $label = entity_label($this->entityType, $entity);
         $confirm_question = t('Are you sure you want to delete the %entity %label?', array('%entity' => $this->entityInfo['label'], '%label' => $label));
         return confirm_form($form, $confirm_question, $this->path);
+
+        case 'export':
+          if (!empty($this->entityInfo['exportable']) && module_exists('entity_plus')) {
+            $export = entity_plus_export($this->entityType, $entity);
+            $form['export'] = array(
+              '#type' => 'textarea',
+              '#title' => t('Export'),
+              '#description' => t('For importing copy the content of the text area and paste it into the import page.'),
+              '#rows' => 25,
+              '#default_value' => $export,
+            );
+            return $form;
+          }
+  
+        case 'import':
+          if (module_exists('entity_plus')) {
+            $form['import'] = array(
+              '#type' => 'textarea',
+              '#title' => t('Import'),
+              '#description' => t('Paste an exported %entity_type here.', array('%entity_type' => $this->entityInfo['label'])),
+              '#rows' => 20,
+            );
+            $form['overwrite'] = array(
+              '#title' => t('Overwrite'),
+              '#type' => 'checkbox',
+              '#description' => t('If checked, any existing %entity with the same identifier will be replaced by the import.', array('%entity' => $this->entityInfo['label'])),
+              '#default_value' => FALSE,
+            );
+            $form['submit'] = array(
+              '#type' => 'submit',
+              '#value' => t('Import'),
+            );
+            return $form;
+          }
     }
     backdrop_not_found();
     exit;
@@ -329,7 +381,27 @@ class EntityDefaultUIController {
   /**
    * Operation form validation callback.
    */
-  public function operationFormValidate($form, &$form_state) {}
+  public function operationFormValidate($form, &$form_state) {
+    if ($form_state['op'] == 'import' && module_exists('entity_plus')) {
+      if ($entity = entity_plus_import($this->entityType, $form_state['values']['import'])) {
+        // Store the successfully imported entity in $form_state.
+        $form_state[$this->entityType] = $entity;
+        if (!$form_state['values']['overwrite']) {
+          // Check for existing entities with the same identifier.
+          $id = entity_plus_id($this->entityType, $entity);
+          $entities = entity_load($this->entityType, array($id));
+          if (!empty($entities)) {
+            $label = entity_label($this->entityType, $entity);
+            $vars = array('%entity' => $this->entityInfo['label'], '%label' => $label);
+            form_set_error('import', t('Import of %entity %label failed, a %entity with the same machine name already exists. Check the overwrite option to replace it.', $vars));
+          }
+        }
+      }
+      else {
+        form_set_error('import', t('Import failed.'));
+      }
+    }
+  }
 
   /**
    * Operation form submit callback.
@@ -367,6 +439,22 @@ class EntityDefaultUIController {
         $entity->delete();
         watchdog($this->entityType, 'Deleted %entity %label.', $vars);
         return t('Deleted %entity %label.', $vars);
+
+      case 'import':
+        if (module_exists('entity_plus')) {
+          // First check if there is any existing entity with the same ID.
+          $id = entity_plus_id($this->entityType, $entity);
+          $entities = entity_load($this->entityType, array($id));
+          if ($existing_entity = reset($entities)) {
+            // Copy DB id and remove the new indicator to overwrite the DB record.
+            $idkey = $this->entityInfo['entity keys']['id'];
+            $entity->{$idkey} = $existing_entity->{$idkey};
+            unset($entity->is_new);
+          }
+          entity_plus_save($this->entityType, $entity);
+          watchdog($this->entityType, 'Imported %entity %label.', $vars);
+          return t('Imported %entity %label.', $vars);
+        }
 
       default:
         return FALSE;
