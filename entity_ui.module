@@ -51,7 +51,7 @@ function entity_ui_menu() {
  * This can be used to load entities of all types in menu paths:
  *
  * @code
- * $items['myentity/%entity_object'] = array(
+ * $items['myentity/%entity_ui_object'] = array(
  *   'load arguments' => array('myentity'),
  *   'title' => ...,
  *   'page callback' => ...,
@@ -68,8 +68,7 @@ function entity_ui_menu() {
  *   A fully loaded entity object, or FALSE in case of error.
  */
 function entity_ui_object_load($entity_id, $entity_type) {
-  $entities = entity_load($entity_type, array($entity_id));
-  return reset($entities);
+  return entity_load($entity_type, $entity_id);
 }
 
 /**
